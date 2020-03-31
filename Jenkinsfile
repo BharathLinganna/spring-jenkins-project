@@ -1,25 +1,48 @@
-node {
-    def workspace = pwd()
-    def TOMCAT_HOME = "/home/vagrant/jenkins-training/tomcat"
-    stage('Application_Build') {
-        checkout scm
-        sh 'mvn clean package -DskipTests'
-    }    
-    stage('Application_Unit_Test') {        
-        sh 'mvn -Dfilename=testng-unit.xml compiler:testCompile surefire:test'
-        step([$class: 'Publisher'])
-    }    
-    stage('Application_Code_Analysis') {        
-        withSonarQubeEnv {
-            sh 'mvn sonar:sonar'
+pipeline {
+   agent any
+
+   stages {
+      stage('Hello') {
+         steps {
+            echo 'Hello World'
+         }
+      }
+    stage('Application Build') {
+         steps {
+            git 'https://github.com/BharathLinganna/spring-jenkins-project.git'
+            sh label: '', script: 'mvn clean package -DskipTests'
+         }
+      }
+      stage('Application_Unit_Test'){
+         steps {
+            sh label: '', script: 'mvn -Dfilename=testng-unit.xml test'
+         }
+	  post {
+  	    always {
+		    step([$class: 'Publisher'])
+  	        }
+          }
+       }
+       stage('Application_Code_Analaysis'){
+         steps {
+            sh label: '', script: 'mvn sonar:sonar'
+         }
+	   }
+	   stage('Application_Deployment') {
+         steps {
+            sh label: '', script: 'cp $(pwd)/target/spring-project.war ~/jenkins-training/tomcat/webapps/'
+            }
+	    }
+	    stage('Application_Functional_Test') {
+            steps {
+	            sleep time: 30, unit: 'NANOSECONDS'
+                sh label: '', script: 'mvn -Dfilename=testng-functional.xml test'
+            }
+            post {
+  	            always {
+		        step([$class: 'Publisher'])
+  	            }
         }
-    }
-    stage('Application_Deploy') {
-        sh "cp ${workspace}/target/spring-project.war ${TOMCAT_HOME}/webapps/"
-    }    
-    stage('Application_Functional_Testing') {
-	sleep(time:60,unit:"SECONDS")
-	sh 'mvn clean -Dfilename=testng-functional.xml test'
-	step([$class: 'Publisher'])
-    }
+	    }
+     }
 }
